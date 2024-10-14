@@ -29,7 +29,7 @@ import com.google.gson.JsonParser;
 /**
  * Abstract annotator class for annotation systems that are hosted by <a href=
  * "https://github.com/dice-group/LFQA/tree/main/naive-eamt#na%C3%AFve-eamt-na%C3%AFve-entity-aware-machine-translation-framework">NEAMT</a>.
- * 
+ *
  * @author Michael R&ouml;der (michael.roeder@uni-paderborn.de)
  *
  */
@@ -86,8 +86,19 @@ public abstract class AbstractNeamtAnnotator extends AbstractHttpBasedAnnotator 
             try {
                 resultDoc = new DocumentImpl(text, documentUri);
                 String content = IOUtils.toString(entity.getContent());
+                boolean multipartContent = false;
+                if (content.trim().startsWith("[") && content.trim().endsWith("]"))  {
+                    multipartContent = true;
+                    content = "{\"multipart\": " + content.trim() + "}";
+                }
                 JsonObject outJson = new JsonParser().parse(content).getAsJsonObject();
-                parseMarkings(outJson, resultDoc);
+                if (multipartContent) {
+                    LOGGER.error("Received multi-element answer from " + serviceUrl + " for document " + documentUri  + ", content: " + content.trim());
+                    parseMarkings(outJson.getAsJsonArray("multipart").get(0).getAsJsonObject(), resultDoc);
+                }
+                else {
+                    parseMarkings(outJson, resultDoc);
+                }
             } catch (Exception e) {
                 LOGGER.error("Couldn't parse the response.", e);
                 throw new GerbilException("Couldn't parse the response.", e, ErrorTypes.UNEXPECTED_EXCEPTION);
